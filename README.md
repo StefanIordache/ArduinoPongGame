@@ -19,3 +19,5 @@ Detalii succinte despre implementare:
     4. Clasa "pad" reglementează controlul asupra paletei prin reținerea și manipularea următoarelor date: poziția pe axa Ox (prin stânga și dreapta paletei) și dimensiunea ei.
     5. Clasa "game" urmărește starea jocului (GAME_ON, GAME_OFF, GAME_OVER), punctajele (cel curent, respectiv cel mai bun), dar și cronometrajul jocului (timpul de la apăsarea butonul de start, momentul la care s-a finalizat jocul și momentul curent al jocului).
     
+Video demonstrativ:
+    https://drive.google.com/open?id=1zFmojDi-ZzC8kQoBV7-dwYy65EdwF07V
