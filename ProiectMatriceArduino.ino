@@ -1,3 +1,6 @@
+// Directiile de miscare sunt definite prin sistemul definit de "Roza vanturilor", anume:
+// N = 0, NE = 1, E = 2, SE = 3, S = 4, SV = 5, V = 6, NV = 7
+
 #include <LedControl.h>
 #include <LiquidCrystal.h>
 
@@ -29,6 +32,7 @@
 #define PAD_START_RIGHT_POSITION 2
 #define PAD_SPEED 100
 
+//Vectori cu 8 variabile de tip byte utilizate pentru a desena cronometrul
 const byte three[] = {
   B00000000,
   B01111110,
@@ -66,7 +70,7 @@ unsigned long currentArduinoTime;
 
 int customDisplayOnMatrix(byte *toDisplay);
 
-
+//Clasa "Dot" contine coordonatele punctului (x, y, ultimul y), dar si directia si viteza acestuia
 class Dot 
 {
 private:
@@ -121,6 +125,7 @@ public:
   {
     return this->speed;
   }
+  //Functia setStart atribuie aleatoriu coordonata x a punctului, o directie, iar valoarea lui y este initializata cu 6 (marginea de sus)
   int setStart()
   {
     this->x = random(1,7);
@@ -128,6 +133,7 @@ public:
     this->yPrevious = 6;
     this->direction = random(3,6);
   }
+  //Viteza punctului creste cu 10 milisecunde la fiecare apel, dar nu ajunge niciodata la o viteza sub 80 ms.
   int increaseSpeed()
   {
     if (this->speed > 80)
@@ -138,6 +144,7 @@ public:
   }
 } dot;
 
+//Clasa "Pad" contine marginile din stanga si dreapta ale paletei, respectiv dimensiunea ei
 class Pad
 {
 private:
@@ -172,9 +179,12 @@ public:
   {
     return this->padSize;
   }
+  //Paleta se misca prin citirea analogica a axei Oy de pe joystick (Oy pentru a putea vizualiza mai bine sistemul de joc implementat)
   int movePad()
   {
     int joystickMoveInput = analogRead(JOYSTICK_MOVE_PIN);
+    
+    //Se incrementeaza sau decrementeaza marginile paletei in functie de valoarea citita
     if (joystickMoveInput >= 723 && this->marginLeft < 7)
       {
         ++(this->marginRight);
@@ -189,6 +199,7 @@ public:
   }
 } pad;
 
+//Clasa "Game" manipuleaza scorurile jocului, respectiv timpii ce determina daca ne aflam in joc sau nu
 class Game
 {
 private:
@@ -264,8 +275,10 @@ public:
     ++(this->currentScore);
     return this->currentScore;
   }
+  //Functie utilizata la inceputul fiecarui joc, dupa apasarea butonului de pe joystick
   int displayTimer()
   {
+    //Ne ocupam prima data de ecranul LCD, pentru a ii oferi timp jucatorului sa observe scorul maxim acumulat.
     if (this->timeSinceGameStarted == 1)
     {
       lcd.clear();
@@ -278,6 +291,7 @@ public:
       lcd.print(this->bestScore);
       customDisplayOnMatrix(three);
     }
+    //Pentru urmatoarele 3 secunde vom afisa cronometrul
     else if (this->timeSinceGameStarted == 1001)
     {
       customDisplayOnMatrix(two);
@@ -288,6 +302,8 @@ public:
     }
     return 0;
   }
+  
+  //Functie necesara pentru desenarea matricei
   int drawGameMatrix()
   {
     int dotX = dot.getX();
@@ -298,6 +314,7 @@ public:
     {
       ledControl.setRow(0, dotYLastPosition, 0);
     }
+    //Operațiile de deplasare a bitilor ne ofera o modalitate simpla de a desena pe matrice, alaturi de functia setRow
     byte dotRow = 1 << dotX;
     ledControl.setRow(0, dotY, dotRow);
     byte padRow = byte(255 >> (8 - PAD_WIDTH) << padRight);
@@ -340,6 +357,8 @@ void loop()
 {
   currentArduinoTime = millis();
   int gameState = game.getGameState();
+  
+  //Prima stare a jocului este definita prin meniul de joc. Aici se asteapta click-ul utilizatorului pentru a incepe
   if (gameState == GAME_OFF)
   {
     int joystickButtonState = digitalRead(JOYSTICK_CLICK_PIN);
@@ -349,6 +368,8 @@ void loop()
         game.setTimeWhenGameStarted(currentArduinoTime);
       }
   }
+  
+  //Starea activa a jocului este cea in care apelam functiile de miscare pentru punct/paleta, respectiv cronometrul
   else if (gameState == GAME_ON)
   {
     unsigned long timeSinceGameStarted = game.setTimeSinceGameStarted(currentArduinoTime - game.getTimeWhenGameStarted());
@@ -364,6 +385,7 @@ void loop()
     else
     {
       int dotSpeed = dot.getSpeed();
+      //Paleta se muta cu prioritatea fata de punct la timpii determinati de programator
       if (timeSinceGameStarted % PAD_SPEED == 0)
       {
         pad.movePad();
@@ -373,17 +395,20 @@ void loop()
         moveDotFunction();
       }
       game.drawGameMatrix();
+      //Verificam daca jocul s-a terminat si schimbam starea daca este nevoie
       if (checkIfLost())
       {
         game.setTimeWhenGameFinished(currentArduinoTime);
         game.setGameState(GAME_OVER);
       }
+      //Viteza punctului se modifica la fiecare 15 secunde de cand s-a dat click pe butonul joystick-ului
       if (timeSinceGameStarted % 15000 == 0)
       {
         dot.increaseSpeed();
       }
     }
   }
+  //Starea de final afiseaza pentru 3 secunde informatiile despre scor, apoi reseteaza afisajul la starea de inceput
   else if (gameState == GAME_OVER)
   {
     unsigned int timeSinceGameOver = currentArduinoTime - game.getTimeWhenGameFinished();
@@ -406,6 +431,7 @@ void loop()
   }
 }
 
+//Functie utilizata pentru a afisa un vector de 8 variabile byte
 int customDisplayOnMatrix(byte *toDisplay)
 {
     for(int row = 7; row >= 0; row--)
@@ -420,6 +446,7 @@ void gameIsOver()
   ledControl.clearDisplay(0); 
 }
 
+//Verificam ciocnirile bilei de joc cu peretii matricei
 int checkWalls()
 {
   int dotX = dot.getX();
@@ -441,6 +468,8 @@ int checkWalls()
   return 0; 
 }
 
+//Pentru a determina tipul de interactiune al bilei cu paleta verificam de fiecare data cand este necesar daca cele 2 s-au lovit
+//Functia ne ajuta in determinarea starii jocului (activ/jucatorul a pierdut)
 int checkPadHit()
 {
   int dotY = dot.getY();
@@ -473,6 +502,7 @@ bool checkIfLost()
   return false;
 }
 
+//Functia de miscare a punctul este si cea mai complexa datorita regulilor multiple
 void moveDotFunction()
 {
   int wallBounce = checkWalls();
@@ -480,6 +510,7 @@ void moveDotFunction()
   int dotX = dot.getX();
   int dotY = dot.getY();
 
+  //Verificam prima data ciocnirea de zid a bilei si setam directia in functie de directia anterioara si tipul de ciocnire cu zidul
   if (wallBounce != 0)
   {
     switch(dotDirection)
@@ -539,12 +570,15 @@ void moveDotFunction()
     }
   }
 
+  //Daca avem o ciocnire a bilei cu paleta incrementam scorul jocului curent si afisam pe ecranul LCD
   int padHit = checkPadHit();
   if (padHit == HIT_LEFT || padHit == HIT_CENTER || padHit == HIT_RIGHT)
   {
     lcd.setCursor(7,0);
     lcd.print(game.incrementCurrentScore());
   }
+  
+  //Totodata analizam cazul in care bila de joc s-a lovit de paleta si setam corespunzator directia noua
   switch(padHit)
   {
     case HIT_LEFT:
